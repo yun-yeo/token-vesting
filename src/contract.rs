@@ -189,13 +189,11 @@ fn register_vesting_account(
             }
 
             if end_time <= start_time {
-                return Err(StdError::generic_err(
-                    "end_time must be bigger than start_time",
-                ));
+                return Err(StdError::generic_err("assert(end_time > start_time)"));
             }
 
             if vesting_interval == 0 {
-                return Err(StdError::generic_err("vesting_interval must be non-zero"));
+                return Err(StdError::generic_err("assert(vesting_interval != 0)"));
             }
 
             let time_period = end_time - start_time;
@@ -211,7 +209,7 @@ fn register_vesting_account(
                 .checked_add(amount.checked_mul(Uint128::from(num_interval))?)?;
             if vesting_amount != deposit_amount {
                 return Err(StdError::generic_err(
-                    "assert(deposit_amount = initial_claimable_amount + amount * num_interval",
+                    "assert(deposit_amount = initial_claimable_amount + amount * num_interval)",
                 ));
             }
         }
