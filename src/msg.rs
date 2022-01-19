@@ -87,19 +87,21 @@ pub enum VestingSchedule {
     /// LinearVesting is used to vest tokens linearly during a time period.
     /// The total_amount will be vested during this period.
     LinearVesting {
-        start_time: String,    // vesting start time in second unit
-        end_time: String,      // vesting end time in second unit
-        total_amount: Uint128, // total vesting amount
+        start_time: String,                        // vesting start time in second unit
+        end_time: String,                          // vesting end time in second unit
+        vesting_amount: Uint128,                   // total vesting amount
+        initial_claimable_amount: Option<Uint128>, // initial claimable amount
     },
     /// PeriodicVesting is used to vest tokens
     /// at regular intervals for a specific period.
     /// To minimize calculation error,
     /// (end_time - start_time) should be multiple of vesting_interval
     PeriodicVesting {
-        start_time: String,       // vesting start time in second unit
-        end_time: String,         // vesting end time in second unit
-        vesting_interval: String, // vesting interval in second unit
-        amount: Uint128,          // the amount will be vested in a interval
+        start_time: String,                        // vesting start time in second unit
+        end_time: String,                          // vesting end time in second unit
+        vesting_interval: String,                  // vesting interval in second unit
+        amount: Uint128,                           // the amount will be vested in a interval
+        initial_claimable_amount: Option<Uint128>, // initial claimable amount
     },
 }
 
@@ -109,17 +111,25 @@ impl VestingSchedule {
             VestingSchedule::LinearVesting {
                 start_time,
                 end_time,
-                total_amount,
+                vesting_amount,
+                initial_claimable_amount,
             } => {
+                let vesting_amount = *vesting_amount;
+                let initial_claimable_amount =
+                    initial_claimable_amount.unwrap_or_else(Uint128::zero);
+
                 let start_time = start_time.parse::<u64>().unwrap();
                 let end_time = end_time.parse::<u64>().unwrap();
                 if block_time >= end_time {
-                    return Ok(*total_amount);
+                    return Ok(vesting_amount);
                 }
 
-                let vested_token = total_amount
-                    .checked_mul(Uint128::from(block_time - start_time))?
-                    .checked_div(Uint128::from(end_time - start_time))?;
+                let vested_token = initial_claimable_amount.checked_add(
+                    vesting_amount
+                        .checked_sub(initial_claimable_amount)?
+                        .checked_mul(Uint128::from(block_time - start_time))?
+                        .checked_div(Uint128::from(end_time - start_time))?,
+                )?;
                 Ok(vested_token)
             }
             VestingSchedule::PeriodicVesting {
@@ -127,17 +137,23 @@ impl VestingSchedule {
                 end_time,
                 vesting_interval,
                 amount,
+                initial_claimable_amount,
             } => {
                 let start_time = start_time.parse::<u64>().unwrap();
                 let end_time = end_time.parse::<u64>().unwrap();
                 let vesting_interval = vesting_interval.parse::<u64>().unwrap();
                 let num_interval = (end_time - start_time) / vesting_interval;
+                let initial_claimable_amount =
+                    initial_claimable_amount.unwrap_or_else(Uint128::zero);
+
                 if block_time >= end_time {
-                    return Ok(amount.checked_mul(Uint128::from(num_interval))?);
+                    return Ok(initial_claimable_amount
+                        .checked_add(amount.checked_mul(Uint128::from(num_interval))?)?);
                 }
 
                 let passed_interval = (block_time - start_time) / vesting_interval;
-                Ok(amount.checked_mul(Uint128::from(passed_interval))?)
+                Ok(initial_claimable_amount
+                    .checked_add(amount.checked_mul(Uint128::from(passed_interval))?)?)
             }
         }
     }
@@ -148,21 +164,25 @@ fn linear_vesting_vested_amount() {
     let schedule = VestingSchedule::LinearVesting {
         start_time: "100".to_string(),
         end_time: "110".to_string(),
-        total_amount: Uint128::new(1000000u128),
+        vesting_amount: Uint128::new(2000000u128),
+        initial_claimable_amount: Some(Uint128::new(1000000u128)),
     };
 
-    assert_eq!(schedule.vested_amount(100).unwrap(), Uint128::zero());
+    assert_eq!(
+        schedule.vested_amount(100).unwrap(),
+        Uint128::new(1000000u128)
+    );
     assert_eq!(
         schedule.vested_amount(105).unwrap(),
-        Uint128::new(500000u128)
+        Uint128::new(1500000u128)
     );
     assert_eq!(
         schedule.vested_amount(110).unwrap(),
-        Uint128::new(1000000u128)
+        Uint128::new(2000000u128)
     );
     assert_eq!(
         schedule.vested_amount(115).unwrap(),
-        Uint128::new(1000000u128)
+        Uint128::new(2000000u128)
     );
 }
 
@@ -173,19 +193,23 @@ fn periodic_vesting_vested_amount() {
         end_time: "110".to_string(),
         vesting_interval: "1".to_string(),
         amount: Uint128::new(100000u128),
+        initial_claimable_amount: Some(Uint128::new(1000000u128)),
     };
 
-    assert_eq!(schedule.vested_amount(100).unwrap(), Uint128::zero());
+    assert_eq!(
+        schedule.vested_amount(100).unwrap(),
+        Uint128::new(1000000u128)
+    );
     assert_eq!(
         schedule.vested_amount(105).unwrap(),
-        Uint128::new(500000u128)
+        Uint128::new(1500000u128)
     );
     assert_eq!(
         schedule.vested_amount(110).unwrap(),
-        Uint128::new(1000000u128)
+        Uint128::new(2000000u128)
     );
     assert_eq!(
         schedule.vested_amount(115).unwrap(),
-        Uint128::new(1000000u128)
+        Uint128::new(2000000u128)
     );
 }

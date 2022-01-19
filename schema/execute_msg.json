@@ -202,16 +202,26 @@
               "required": [
                 "end_time",
                 "start_time",
-                "total_amount"
+                "vesting_amount"
               ],
               "properties": {
                 "end_time": {
                   "type": "string"
                 },
+                "initial_claimable_amount": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "start_time": {
                   "type": "string"
                 },
-                "total_amount": {
+                "vesting_amount": {
                   "$ref": "#/definitions/Uint128"
                 }
               }
@@ -240,6 +250,16 @@
                 },
                 "end_time": {
                   "type": "string"
+                },
+                "initial_claimable_amount": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "start_time": {
                   "type": "string"
