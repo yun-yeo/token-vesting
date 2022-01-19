@@ -120,6 +120,11 @@ impl VestingSchedule {
 
                 let start_time = start_time.parse::<u64>().unwrap();
                 let end_time = end_time.parse::<u64>().unwrap();
+
+                if block_time <= start_time {
+                    return Ok(initial_claimable_amount);
+                }
+
                 if block_time >= end_time {
                     return Ok(vesting_amount);
                 }
@@ -145,6 +150,10 @@ impl VestingSchedule {
                 let num_interval = (end_time - start_time) / vesting_interval;
                 let initial_claimable_amount =
                     initial_claimable_amount.unwrap_or_else(Uint128::zero);
+
+                if block_time <= start_time {
+                    return Ok(initial_claimable_amount);
+                }
 
                 if block_time >= end_time {
                     return Ok(initial_claimable_amount
