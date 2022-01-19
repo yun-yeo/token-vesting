@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "InstantiateMsg",
+  "title": "MasterAddressResponse",
   "type": "object",
+  "required": [
+    "master_address"
+  ],
   "properties": {
     "master_address": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": "string"
     }
   }
 }

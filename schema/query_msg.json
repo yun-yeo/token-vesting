@@ -1,7 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "QueryMsg",
-  "anyOf": [
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "master_address"
+      ],
+      "properties": {
+        "master_address": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
     {
       "type": "object",
       "required": [
@@ -47,7 +59,7 @@
       "type": "string"
     },
     "Denom": {
-      "anyOf": [
+      "oneOf": [
         {
           "type": "object",
           "required": [

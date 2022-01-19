@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "anyOf": [
+  "oneOf": [
     {
       "type": "object",
       "required": [
@@ -30,12 +30,6 @@
           "properties": {
             "address": {
               "type": "string"
-            },
-            "master_address": {
-              "type": [
-                "string",
-                "null"
-              ]
             },
             "vesting_schedule": {
               "$ref": "#/definitions/VestingSchedule"
@@ -76,6 +70,26 @@
                 "string",
                 "null"
               ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_master_address"
+      ],
+      "properties": {
+        "update_master_address": {
+          "type": "object",
+          "required": [
+            "master_address"
+          ],
+          "properties": {
+            "master_address": {
+              "type": "string"
             }
           }
         }
@@ -143,7 +157,7 @@
       }
     },
     "Denom": {
-      "anyOf": [
+      "oneOf": [
         {
           "type": "object",
           "required": [
@@ -175,7 +189,7 @@
       "type": "string"
     },
     "VestingSchedule": {
-      "anyOf": [
+      "oneOf": [
         {
           "description": "LinearVesting is used to vest tokens linearly during a time period. The total_amount will be vested during this period.",
           "type": "object",

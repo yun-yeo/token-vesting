@@ -23,7 +23,7 @@
       "type": "string"
     },
     "Denom": {
-      "anyOf": [
+      "oneOf": [
         {
           "type": "object",
           "required": [
@@ -67,12 +67,6 @@
         "claimable_amount": {
           "$ref": "#/definitions/Uint128"
         },
-        "master_address": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "vested_amount": {
           "$ref": "#/definitions/Uint128"
         },
@@ -88,7 +82,7 @@
       }
     },
     "VestingSchedule": {
-      "anyOf": [
+      "oneOf": [
         {
           "description": "LinearVesting is used to vest tokens linearly during a time period. The total_amount will be vested during this period.",
           "type": "object",

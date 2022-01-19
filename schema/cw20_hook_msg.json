@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Cw20HookMsg",
-  "anyOf": [
+  "oneOf": [
     {
       "description": "Register vesting account with token transfer",
       "type": "object",
@@ -19,12 +19,6 @@
             "address": {
               "type": "string"
             },
-            "master_address": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
             "vesting_schedule": {
               "$ref": "#/definitions/VestingSchedule"
             }
@@ -40,7 +34,7 @@
       "type": "string"
     },
     "VestingSchedule": {
-      "anyOf": [
+      "oneOf": [
         {
           "description": "LinearVesting is used to vest tokens linearly during a time period. The total_amount will be vested during this period.",
           "type": "object",
