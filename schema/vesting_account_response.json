@@ -101,16 +101,6 @@
                 "end_time": {
                   "type": "string"
                 },
-                "initial_claimable_amount": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/Uint128"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
                 "start_time": {
                   "type": "string"
                 },
@@ -123,7 +113,7 @@
           "additionalProperties": false
         },
         {
-          "description": "PeriodicVesting is used to vest tokens at regular intervals for a specific period. To minimize calculation error, (end_time - start_time) should be multiple of vesting_interval",
+          "description": "PeriodicVesting is used to vest tokens at regular intervals for a specific period. To minimize calculation error, (end_time - start_time) should be multiple of vesting_interval deposit_amount = amount * ((end_time - start_time) / vesting_interval + 1)",
           "type": "object",
           "required": [
             "periodic_vesting"
@@ -143,16 +133,6 @@
                 },
                 "end_time": {
                   "type": "string"
-                },
-                "initial_claimable_amount": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/Uint128"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
                 },
                 "start_time": {
                   "type": "string"

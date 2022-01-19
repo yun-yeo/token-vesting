@@ -124,7 +124,6 @@ fn register_vesting_account(
             start_time,
             end_time,
             vesting_amount,
-            initial_claimable_amount,
         } => {
             if vesting_amount.is_zero() {
                 return Err(StdError::generic_err("assert(vesting_amount > 0)"));
@@ -146,13 +145,6 @@ fn register_vesting_account(
                 return Err(StdError::generic_err("assert(end_time <= start_time)"));
             }
 
-            let initial_claimable_amount = initial_claimable_amount.unwrap_or_else(Uint128::zero);
-            if initial_claimable_amount > vesting_amount {
-                return Err(StdError::generic_err(
-                    "assert(initial_claimable_amount > vesting_amount)",
-                ));
-            }
-
             if vesting_amount != deposit_amount {
                 return Err(StdError::generic_err(
                     "assert(deposit_amount == vesting_amount)",
@@ -164,7 +156,6 @@ fn register_vesting_account(
             end_time,
             vesting_interval,
             amount,
-            initial_claimable_amount,
         } => {
             if amount.is_zero() {
                 return Err(StdError::generic_err(
@@ -197,19 +188,17 @@ fn register_vesting_account(
             }
 
             let time_period = end_time - start_time;
-            let num_interval = time_period / vesting_interval;
-            if time_period != num_interval * vesting_interval {
+            if time_period != (time_period / vesting_interval) * vesting_interval {
                 return Err(StdError::generic_err(
                     "assert((end_time - start_time) % vesting_interval == 0)",
                 ));
             }
 
-            let initial_claimable_amount = initial_claimable_amount.unwrap_or_else(Uint128::zero);
-            let vesting_amount = initial_claimable_amount
-                .checked_add(amount.checked_mul(Uint128::from(num_interval))?)?;
+            let num_interval = 1 + time_period / vesting_interval;
+            let vesting_amount = amount.checked_mul(Uint128::from(num_interval))?;
             if vesting_amount != deposit_amount {
                 return Err(StdError::generic_err(
-                    "assert(deposit_amount = initial_claimable_amount + amount * num_interval)",
+                    "assert(deposit_amount = amount * ((end_time - start_time) / vesting_interval + 1))",
                 ));
             }
         }
