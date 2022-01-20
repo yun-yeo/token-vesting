@@ -141,7 +141,7 @@ fn register_vesting_account(
                 return Err(StdError::generic_err("assert(start_time < block_time)"));
             }
 
-            if end_time <= start_time {
+            if end_time < start_time {
                 return Err(StdError::generic_err("assert(end_time <= start_time)"));
             }
 
@@ -179,7 +179,7 @@ fn register_vesting_account(
                 return Err(StdError::generic_err("invalid start_time"));
             }
 
-            if end_time <= start_time {
+            if end_time < start_time {
                 return Err(StdError::generic_err("assert(end_time > start_time)"));
             }
 
