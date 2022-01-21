@@ -151,31 +151,6 @@ fn register_vesting_account(
                 return Err(StdError::generic_err("assert(start_time < block_time)"));
             }
 
-            let mut time_verification = false;
-            let schedules_len = vesting_account.vesting_schedules.len();
-
-            for index in 0..schedules_len {
-                let (schedule_start_time, schedule_end_time) = vesting_account.vesting_schedules[index].get_vesting_time()?;
-                if former_end_time <= start_time && end_time <= schedule_start_time {
-                    time_verification = true;
-                    vesting_account.vesting_schedules.insert(index, vesting_schedule.clone());
-                    vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
-                    break;
-                }
-                former_end_time = schedule_end_time
-            }
-
-            // last schedule check
-            if !time_verification && former_end_time <= start_time {
-                vesting_account.vesting_schedules.insert(schedules_len, vesting_schedule);
-                vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
-                time_verification = true;
-            }
-
-            if !time_verification {
-                return Err(StdError::generic_err("invalid time range"))
-            }
-
             if end_time < start_time {
                 return Err(StdError::generic_err("assert(end_time <= start_time)"));
             }
@@ -185,6 +160,9 @@ fn register_vesting_account(
                     "assert(deposit_amount == vesting_amount)",
                 ));
             }
+
+            vesting_account.vesting_schedules.push(vesting_schedule.clone());
+            vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
         }
         VestingSchedule::PeriodicVesting {
             start_time,
@@ -229,31 +207,6 @@ fn register_vesting_account(
                 ));
             }
 
-            let mut time_verification = false;
-            let schedules_len = vesting_account.vesting_schedules.len();
-
-            for index in 0..schedules_len {
-                let (schedule_start_time, schedule_end_time) = vesting_account.vesting_schedules[index].get_vesting_time()?;
-                if former_end_time <= start_time && end_time <= schedule_start_time {
-                    time_verification = true;
-                    vesting_account.vesting_schedules.insert(index, vesting_schedule.clone());
-                    vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
-                    break;
-                }
-                former_end_time = schedule_end_time
-            }
-
-            // last schedule check
-            if !time_verification && former_end_time <= start_time {
-                vesting_account.vesting_schedules.insert(schedules_len, vesting_schedule);
-                vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
-                time_verification = true;
-            }
-
-            if !time_verification {
-                return Err(StdError::generic_err("invalid time range"))
-            }
-
             if end_time < start_time {
                 return Err(StdError::generic_err("assert(end_time => start_time)"));
             }
@@ -261,6 +214,9 @@ fn register_vesting_account(
             if vesting_interval == 0 {
                 return Err(StdError::generic_err("assert(vesting_interval != 0)"));
             }
+
+            vesting_account.vesting_schedules.push(vesting_schedule.clone());
+            vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
         }
     }
 
@@ -462,9 +418,6 @@ fn get_vested_amount(vesting_schedules: Vec<VestingSchedule>, block_time: u64)->
     for index in 0..schedules_len {
         let vested_amount = vesting_schedules[index].vested_amount(block_time)?;
         total_vested_amount = total_vested_amount + vested_amount;
-        if vested_amount == Uint128::zero() {
-            break;
-        }
     }
 
     return Ok(total_vested_amount)

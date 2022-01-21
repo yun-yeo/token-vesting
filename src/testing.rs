@@ -832,29 +832,8 @@ fn add_multiple_schedules() {
         },
     };
 
-
-    // invalid range
     let info = mock_info("addr0000", &[Coin::new(1000000u128, "uusd")]);
     let _ = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-    let msg = ExecuteMsg::RegisterVestingAccount {
-        address: "addr0001".to_string(),
-        vesting_schedule: VestingSchedule::LinearVesting {
-            start_time: "105".to_string(),
-            end_time: "115".to_string(),
-            vesting_amount: Uint128::new(1000000u128),
-        },
-    };
-
-    let info = mock_info("addr0000", &[Coin::new(1000000u128, "uusd")]);
-    let res = execute(deps.as_mut(), env.clone(), info, msg);
-
-    match res.unwrap_err() {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "invalid time range")
-        }
-        _ => panic!("should not enter"),
-    }
 
     // valid
     let msg = ExecuteMsg::RegisterVestingAccount {
@@ -873,8 +852,8 @@ fn add_multiple_schedules() {
     let msg = ExecuteMsg::RegisterVestingAccount {
         address: "addr0001".to_string(),
         vesting_schedule: VestingSchedule::LinearVesting {
-            start_time: "110".to_string(),
-            end_time: "120".to_string(),
+            start_time: "105".to_string(),
+            end_time: "125".to_string(),
             vesting_amount: Uint128::new(1000000u128),
         },
     };
@@ -911,13 +890,13 @@ fn add_multiple_schedules() {
                         vesting_amount: Uint128::new(1000000u128),
                     },
                     VestingSchedule::LinearVesting {
-                        start_time: "110".to_string(),
-                        end_time: "120".to_string(),
+                        start_time: "120".to_string(),
+                        end_time: "130".to_string(),
                         vesting_amount: Uint128::new(1000000u128),
                     },
                     VestingSchedule::LinearVesting {
-                        start_time: "120".to_string(),
-                        end_time: "130".to_string(),
+                        start_time: "105".to_string(),
+                        end_time: "125".to_string(),
                         vesting_amount: Uint128::new(1000000u128),
                     },
                 ],
