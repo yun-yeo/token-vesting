@@ -126,8 +126,6 @@ fn register_vesting_account(
         }
     }
 
-    let mut former_end_time = env.block.time.seconds();
-
     // validate vesting schedule
     match vesting_schedule.clone() {
         VestingSchedule::LinearVesting {
