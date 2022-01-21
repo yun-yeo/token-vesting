@@ -113,10 +113,20 @@ fn register_vesting_account(
 
     let denom_key = denom_to_key(deposit_denom.clone());
 
-    // vesting_account existence check
+    let mut vesting_account: VestingAccount;
     if VESTING_ACCOUNTS.has(deps.storage, (recipient.as_str(), &denom_key)) {
-        return Err(StdError::generic_err("already exists"));
+        vesting_account = VESTING_ACCOUNTS.load(deps.storage, (recipient.as_str(), &denom_key))?;
+    } else {
+        vesting_account = VestingAccount{
+            address: recipient.to_string(),
+            vesting_denom: deposit_denom.clone(),
+            vesting_amount: Uint128::zero(),
+            vesting_schedules: vec![],
+            claimed_amount: Uint128::zero(),
+        }
     }
+
+    let mut former_end_time = env.block.time.seconds();
 
     // validate vesting schedule
     match vesting_schedule.clone() {
@@ -139,6 +149,31 @@ fn register_vesting_account(
 
             if start_time < env.block.time.seconds() {
                 return Err(StdError::generic_err("assert(start_time < block_time)"));
+            }
+
+            let mut time_verification = false;
+            let schedules_len = vesting_account.vesting_schedules.len();
+
+            for index in 0..schedules_len {
+                let (schedule_start_time, schedule_end_time) = vesting_account.vesting_schedules[index].get_vesting_time()?;
+                if former_end_time <= start_time && end_time <= schedule_start_time {
+                    time_verification = true;
+                    vesting_account.vesting_schedules.insert(index, vesting_schedule.clone());
+                    vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
+                    break;
+                }
+                former_end_time = schedule_end_time
+            }
+
+            // last schedule check
+            if !time_verification && former_end_time <= start_time {
+                vesting_account.vesting_schedules.insert(schedules_len, vesting_schedule);
+                vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
+                time_verification = true;
+            }
+
+            if !time_verification {
+                return Err(StdError::generic_err("invalid time range"))
             }
 
             if end_time < start_time {
@@ -179,14 +214,6 @@ fn register_vesting_account(
                 return Err(StdError::generic_err("invalid start_time"));
             }
 
-            if end_time < start_time {
-                return Err(StdError::generic_err("assert(end_time > start_time)"));
-            }
-
-            if vesting_interval == 0 {
-                return Err(StdError::generic_err("assert(vesting_interval != 0)"));
-            }
-
             let time_period = end_time - start_time;
             if time_period != (time_period / vesting_interval) * vesting_interval {
                 return Err(StdError::generic_err(
@@ -201,19 +228,46 @@ fn register_vesting_account(
                     "assert(deposit_amount = amount * ((end_time - start_time) / vesting_interval + 1))",
                 ));
             }
+
+            let mut time_verification = false;
+            let schedules_len = vesting_account.vesting_schedules.len();
+
+            for index in 0..schedules_len {
+                let (schedule_start_time, schedule_end_time) = vesting_account.vesting_schedules[index].get_vesting_time()?;
+                if former_end_time <= start_time && end_time <= schedule_start_time {
+                    time_verification = true;
+                    vesting_account.vesting_schedules.insert(index, vesting_schedule.clone());
+                    vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
+                    break;
+                }
+                former_end_time = schedule_end_time
+            }
+
+            // last schedule check
+            if !time_verification && former_end_time <= start_time {
+                vesting_account.vesting_schedules.insert(schedules_len, vesting_schedule);
+                vesting_account.vesting_amount = vesting_account.vesting_amount + vesting_amount;
+                time_verification = true;
+            }
+
+            if !time_verification {
+                return Err(StdError::generic_err("invalid time range"))
+            }
+
+            if end_time < start_time {
+                return Err(StdError::generic_err("assert(end_time => start_time)"));
+            }
+
+            if vesting_interval == 0 {
+                return Err(StdError::generic_err("assert(vesting_interval != 0)"));
+            }
         }
     }
 
     VESTING_ACCOUNTS.save(
         deps.storage,
         (recipient.as_str(), &denom_key),
-        &VestingAccount {
-            address: recipient.to_string(),
-            vesting_denom: deposit_denom.clone(),
-            vesting_amount: deposit_amount,
-            vesting_schedule,
-            claimed_amount: Uint128::zero(),
-        },
+        &vesting_account
     )?;
 
     Ok(Response::new().add_attributes(vec![
@@ -254,9 +308,7 @@ fn deregister_vesting_account(
     // remove vesting account
     VESTING_ACCOUNTS.remove(deps.storage, (address.as_str(), &denom_key));
 
-    let vested_amount = account
-        .vesting_schedule
-        .vested_amount(env.block.time.seconds())?;
+    let vested_amount = get_vested_amount(account.vesting_schedules, env.block.time.seconds())?;
     let claimed_amount = account.claimed_amount;
 
     // transfer already vested but not claimed amount to
@@ -350,9 +402,7 @@ fn claim(
         }
 
         let mut account = account.unwrap();
-        let vested_amount = account
-            .vesting_schedule
-            .vested_amount(env.block.time.seconds())?;
+        let vested_amount = get_vested_amount(account.vesting_schedules.clone(), env.block.time.seconds())?;
         let claimed_amount = account.claimed_amount;
 
         let claimable_amount = vested_amount.checked_sub(claimed_amount)?;
@@ -403,6 +453,21 @@ fn claim(
         .add_messages(messages)
         .add_attributes(vec![("action", "claim"), ("address", sender.as_str())])
         .add_attributes(attrs))
+}
+
+fn get_vested_amount(vesting_schedules: Vec<VestingSchedule>, block_time: u64)-> StdResult<Uint128> {
+    let schedules_len = vesting_schedules.len();
+    let mut total_vested_amount = Uint128::zero();
+
+    for index in 0..schedules_len {
+        let vested_amount = vesting_schedules[index].vested_amount(block_time)?;
+        total_vested_amount = total_vested_amount + vested_amount;
+        if vested_amount == Uint128::zero() {
+            break;
+        }
+    }
+
+    return Ok(total_vested_amount)
 }
 
 pub fn receive_cw20(
@@ -475,15 +540,13 @@ fn vesting_account(
         .take(limit)
     {
         let (_, account) = item?;
-        let vested_amount = account
-            .vesting_schedule
-            .vested_amount(env.block.time.seconds())?;
+        let vested_amount = get_vested_amount(account.vesting_schedules.clone(), env.block.time.seconds())?;
 
         vestings.push(VestingData {
             vesting_denom: account.vesting_denom,
             vesting_amount: account.vesting_amount,
             vested_amount,
-            vesting_schedule: account.vesting_schedule,
+            vesting_schedules: account.vesting_schedules,
             claimable_amount: vested_amount.checked_sub(account.claimed_amount)?,
         })
     }

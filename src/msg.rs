@@ -77,7 +77,7 @@ pub struct VestingData {
     pub vesting_denom: Denom,
     pub vesting_amount: Uint128,
     pub vested_amount: Uint128,
-    pub vesting_schedule: VestingSchedule,
+    pub vesting_schedules: Vec<VestingSchedule>,
     pub claimable_amount: Uint128,
 }
 
@@ -151,6 +151,23 @@ impl VestingSchedule {
                 let passed_interval = 1 + (block_time - start_time) / vesting_interval;
                 Ok(amount.checked_mul(Uint128::from(passed_interval))?)
             }
+        }
+    }
+
+    // return (start_time, end_timg)
+    pub fn get_vesting_time(&self) -> StdResult<(u64, u64)> {
+        match self {
+            VestingSchedule::LinearVesting { 
+                start_time,
+                end_time,
+                vesting_amount: _
+            } => return Ok((start_time.parse::<u64>().unwrap(), end_time.parse::<u64>().unwrap())),
+            VestingSchedule::PeriodicVesting {
+                start_time,
+                end_time,
+                vesting_interval: _,
+                amount: _,
+            } => return Ok((start_time.parse::<u64>().unwrap(), end_time.parse::<u64>().unwrap())),
         }
     }
 }

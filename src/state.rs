@@ -14,7 +14,7 @@ pub struct VestingAccount {
     pub address: String,
     pub vesting_denom: Denom,
     pub vesting_amount: Uint128,
-    pub vesting_schedule: VestingSchedule,
+    pub vesting_schedules: Vec<VestingSchedule>,
     pub claimed_amount: Uint128,
 }
 
