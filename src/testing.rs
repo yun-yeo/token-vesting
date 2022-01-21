@@ -1,6 +1,6 @@
 use crate::contract::{execute, instantiate, query};
 use crate::msg::{
-    Cw20HookMsg, ExecuteMsg, InstantiateMsg, MasterAddressResponse, QueryMsg,
+    CliffSchedule, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MasterAddressResponse, QueryMsg,
     VestingAccountResponse, VestingData, VestingSchedule,
 };
 
@@ -103,7 +103,7 @@ fn register_vesting_account_with_native_token() {
     let res = execute(deps.as_mut(), env.clone(), info, msg);
     match res.unwrap_err() {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "assert(vesting_amount > 0)")
+            assert_eq!(msg, "assert(deposit_amount > 0)")
         }
         _ => panic!("should not enter"),
     }
@@ -227,7 +227,7 @@ fn register_vesting_account_with_cw20_token() {
     let res = execute(deps.as_mut(), env.clone(), info.clone(), msg);
     match res.unwrap_err() {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "assert(vesting_amount > 0)")
+            assert_eq!(msg, "assert(deposit_amount > 0)")
         }
         _ => panic!("should not enter"),
     }
@@ -798,6 +798,147 @@ fn query_vesting_account() {
                     vesting_amount: Uint128::new(1000000u128),
                 },
                 claimable_amount: Uint128::new(500000),
+            }],
+        }
+    );
+}
+
+#[test]
+fn register_cliff_vesting_account_with_native_token() {
+    let mut deps = mock_dependencies(&[]);
+    let _res = instantiate(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("addr0000", &[]),
+        InstantiateMsg {
+            master_address: None,
+        },
+    )
+    .unwrap();
+
+    let mut env = mock_env();
+    env.block.time = Timestamp::from_seconds(100);
+
+    // zero amount vesting token
+    let msg = ExecuteMsg::RegisterVestingAccount {
+        address: "addr0001".to_string(),
+        vesting_schedule: VestingSchedule::CliffVesting {
+            schedules: vec![
+                CliffSchedule {
+                    release_time: "105".to_string(),
+                    release_amount: Uint128::zero(),
+                },
+                CliffSchedule {
+                    release_time: "110".to_string(),
+                    release_amount: Uint128::zero(),
+                },
+            ],
+        },
+    };
+
+    // invalid zero amount
+    let info = mock_info("addr0000", &[Coin::new(0u128, "uusd")]);
+    let res = execute(deps.as_mut(), env.clone(), info, msg);
+    match res.unwrap_err() {
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "assert(deposit_amount > 0)")
+        }
+        _ => panic!("should not enter"),
+    }
+
+    // normal amount vesting token
+    let msg = ExecuteMsg::RegisterVestingAccount {
+        address: "addr0001".to_string(),
+        vesting_schedule: VestingSchedule::CliffVesting {
+            schedules: vec![
+                CliffSchedule {
+                    release_time: "105".to_string(),
+                    release_amount: Uint128::new(500000u128),
+                },
+                CliffSchedule {
+                    release_time: "110".to_string(),
+                    release_amount: Uint128::new(500000u128),
+                },
+            ],
+        },
+    };
+
+    // invalid amount
+    let info = mock_info("addr0000", &[]);
+    let res = execute(deps.as_mut(), env.clone(), info, msg.clone());
+    match res.unwrap_err() {
+        StdError::GenericErr { msg, .. } => assert_eq!(msg, "must deposit only one type of token"),
+        _ => panic!("should not enter"),
+    }
+
+    // invalid amount
+    let info = mock_info(
+        "addr0000",
+        &[Coin::new(100u128, "uusd"), Coin::new(10u128, "ukrw")],
+    );
+    let res = execute(deps.as_mut(), env.clone(), info, msg.clone());
+    match res.unwrap_err() {
+        StdError::GenericErr { msg, .. } => assert_eq!(msg, "must deposit only one type of token"),
+        _ => panic!("should not enter"),
+    }
+
+    // invalid amount
+    let info = mock_info("addr0000", &[Coin::new(10u128, "uusd")]);
+    let res = execute(deps.as_mut(), env.clone(), info, msg.clone());
+    match res.unwrap_err() {
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "assert(deposit_amount == vesting_amount)")
+        }
+        _ => panic!("should not enter"),
+    }
+
+    // valid amount
+    let info = mock_info("addr0000", &[Coin::new(1000000u128, "uusd")]);
+    let res: Response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    assert_eq!(
+        res.attributes,
+        vec![
+            ("action", "register_vesting_account"),
+            ("address", "addr0001"),
+            ("vesting_denom", "{\"native\":\"uusd\"}"),
+            ("vesting_amount", "1000000"),
+        ]
+    );
+
+    // query vesting account
+    assert_eq!(
+        from_binary::<VestingAccountResponse>(
+            &query(
+                deps.as_ref(),
+                env,
+                QueryMsg::VestingAccount {
+                    address: "addr0001".to_string(),
+                    start_after: None,
+                    limit: None,
+                },
+            )
+            .unwrap()
+        )
+        .unwrap(),
+        VestingAccountResponse {
+            address: "addr0001".to_string(),
+            vestings: vec![VestingData {
+                vesting_denom: Denom::Native("uusd".to_string()),
+                vesting_amount: Uint128::new(1000000),
+                vested_amount: Uint128::zero(),
+                vesting_schedule: VestingSchedule::CliffVesting {
+                    schedules: vec![
+                        CliffSchedule {
+                            release_time: "105".to_string(),
+                            release_amount: Uint128::new(500000u128),
+                        },
+                        CliffSchedule {
+                            release_time: "110".to_string(),
+                            release_amount: Uint128::new(500000u128),
+                        },
+                    ],
+                },
+                claimable_amount: Uint128::zero(),
             }],
         }
     );
